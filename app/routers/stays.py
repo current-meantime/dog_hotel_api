@@ -12,10 +12,44 @@ from typing import Optional
 router = APIRouter(prefix="/stays", tags=["Stays"])
 
 @router.get("/", response_model=list[StayRead])
-def read_stays(db: Session=Depends(get_db)):
-    stays = db.execute(
-        select(StayModel)
-    ).scalars().all()
+def search_stays(
+    min_days: Optional[int] = None,
+    max_days: Optional[int] = None,
+    status: Optional[str] = None, # "upcoming", "ongoing", "ending_soon"
+    db: Session = Depends(get_db)
+):
+    query = select(StayModel)
+
+    today = date.today()
+
+    if status:
+        if status == "upcoming":
+            query = query.where(StayModel.start_date > today)
+        elif status == "ongoing":
+            query = query.where(
+                StayModel.start_date <= today,
+                StayModel.end_date >= today
+            )
+        elif status == "ending_soon":
+            soon = today + timedelta(days=7)
+            query = query.where(
+                StayModel.end_date >= today,
+                StayModel.end_date <= soon
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Invalid status value")
+
+    if min_days is not None:
+        query = query.where(
+            func.julianday(StayModel.end_date) - func.julianday(StayModel.start_date) + 1 >= min_days
+        )
+
+    if max_days is not None:
+        query = query.where(
+            func.julianday(StayModel.end_date) - func.julianday(StayModel.start_date) + 1 <= max_days
+        )
+
+    stays = db.execute(query).scalars().all()
 
     return stays
 
@@ -137,49 +171,5 @@ def update_stay(stay_id: int, update_data: StayUpdate, db: Session = Depends(get
     return existing_stay
 
 
-'''
-@router.get("/", response_model=list[StayRead])
-def search_stays(
-    min_days: Optional[int] = None,
-    max_days: Optional[int] = None,
-    status: Optional[str] = None, # "upcoming", "ongoing", "ending_soon"
-    db: Session = Depends(get_db)
-):
-    query = select(StayModel)
 
-    today = date.today()
 
-    if status:
-        if status == "upcoming":
-            query = query.where(StayModel.start_date > today) #TODO: change to db.execute()
-        elif status == "ongoing":
-            query = query.where(
-                StayModel.start_date <= today,
-                StayModel.end_date >= today
-            )
-        elif status == "ending_soon":
-            soon = today + timedelta(days=7)
-            query = query.where(
-                StayModel.end_date >= today,
-                StayModel.end_date <= soon
-            )
-        else:
-            raise HTTPException(status_code=400, detail="Invalid status value")
-
-    if min_days is not None:
-        query = query.where(
-            func.julianday(StayModel.end_date) - func.julianday(StayModel.start_date) + 1 >= min_days
-        )
-
-    if max_days is not None:
-        query = query.where(
-            func.julianday(StayModel.end_date) - func.julianday(StayModel.start_date) + 1 <= max_days
-        )
-
-    stays = db.execute(query).scalars().all()
-
-    if not stays:
-        raise HTTPException(status_code=404, detail="No stays found")
-
-    return stays
-'''
