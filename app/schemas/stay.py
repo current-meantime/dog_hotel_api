@@ -16,7 +16,7 @@ class StayCreate(BaseModel):
     
 class StayRead(StayCreate):
     id: int
-    created_at: datetime  #TODO: fix this - skoro w dog to nie musi być Optional, czemu brak Optional daje mi error?!
+    created_at: datetime
     
 class StayUpdate(BaseModel):
     start_date: Optional[date]
