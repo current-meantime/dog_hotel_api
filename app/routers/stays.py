@@ -133,6 +133,20 @@ def update_stay(stay_id: int, update_data: StayUpdate, db: Session = Depends(get
     
     return existing_stay
 
+@router.delete("/{stay_id}", response_model=StayRead)
+def delete_dog(stay_id, db: Session=Depends(get_db)):
+    existing_dog = db.execute(
+        select(StayModel).where(StayModel.id == stay_id)
+    ).scalars().first()
+
+    if not existing_dog:
+        raise HTTPException(status_code=400, detail="Stay does not exist")
+    
+    db.delete(existing_dog)
+    db.commit()
+
+    return existing_dog
+
 
 
 
