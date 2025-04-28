@@ -40,7 +40,7 @@ def get_payment(payment_id: int, db: Session = Depends(get_db)):
     
     return payment
 
-@router.post("/", response_model=PaymentRead) #TODO: wywoływać tę funkcję automatycznie przy tworzeniu stay
+@router.post("/", response_model=PaymentRead)
 def create_payment(payment_create: PaymentCreate, db: Session = Depends(get_db)):
     stay = db.execute(select(Stay).where(Stay.id == payment_create.stay_id)).scalars().first()
     if not stay:
