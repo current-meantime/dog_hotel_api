@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import extract, select, func
 from app.models.stay import Stay as StayModel
 from app.models.owner import Owner as OwnerModel
+from app.models.payment import Payment as PaymentModel
 from app.models.dog import Dog as DogModel  
 from app.schemas.stay import StayRead, StayCreate, StayUpdate
 from app.database.database import get_db
@@ -83,20 +84,22 @@ def get_stay(stay_id, db: Session=Depends(get_db)):
     return existing_stay
 
 @router.post("/", response_model=StayRead) #TODO: add date validation or check if it's by default validated in pydantic model
-def create_stay(stay_data: StayCreate, db: Session=Depends(get_db)):
+def create_stay(stay_data: StayCreate, db: Session = Depends(get_db)):
     # Sprawdzamy, czy właściciel istnieje
     owner = db.execute(
         select(OwnerModel).where(OwnerModel.id == stay_data.owner_id)
     ).scalars().first()
     if not owner:
         raise HTTPException(status_code=400, detail="Owner does not exist")
+
+    # Sprawdzamy, czy pies istnieje
     dog = db.execute(
         select(DogModel).where(DogModel.id == stay_data.dog_id)
     ).scalars().first()
     if not dog:
         raise HTTPException(status_code=400, detail="Dog does not exist")
-    
-    # sprawdzamy czy wpisywane daty nie istnieją już dla tego psa i tego właściciela, czyli czy stay to nie duplikat
+
+    # Sprawdzamy, czy nie istnieje nakładający się pobyt
     overlapping_stay = db.execute(
         select(StayModel).where(
             StayModel.dog_id == stay_data.dog_id,
@@ -107,11 +110,24 @@ def create_stay(stay_data: StayCreate, db: Session=Depends(get_db)):
     ).scalars().first()
     if overlapping_stay:
         raise HTTPException(status_code=400, detail="Overlapping stay exists for this dog and owner")
-    
+
+    # Tworzymy nowy pobyt
     new_stay = StayModel(**stay_data.model_dump())
     db.add(new_stay)
     db.commit()
     db.refresh(new_stay)
+
+    # Tworzymy płatność dla tego pobytu
+    payment = PaymentModel(
+        stay_id=new_stay.id,
+        is_paid=False,
+        overdue_30_days=0
+    )
+    payment.amount = payment.calculate_amount()
+
+    db.add(payment)
+    db.commit()
+    db.refresh(payment)
 
     return new_stay
 
