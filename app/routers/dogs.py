@@ -9,12 +9,40 @@ from app.database.database import get_db
 router = APIRouter(prefix="/dogs", tags=["Dogs"])
 
 @router.get("/", response_model=list[DogRead])
-def read_dogs(db: Session=Depends(get_db)):
-    owners = db.execute(
-        select(DogModel)
-    ).scalars().all()
+def search_dogs(
+    owner_id: int = None,
+    name: str = None,
+    medicated: bool = None,
+    food_type: str = None,  # "standard" lub "non-standard"
+    db: Session = Depends(get_db),
+):
+    query = select(DogModel)
 
-    return owners
+    if owner_id is not None:
+        owner = db.execute(select(OwnerModel).where(OwnerModel.id == owner_id)).scalars().first()
+        if not owner:
+            raise HTTPException(status_code=404, detail="Owner not found")
+        query = query.where(DogModel.owner_id == owner_id)
+
+    if name is not None:
+        query = query.where(DogModel.name == name)
+
+    if medicated is not None:
+        if medicated:
+            query = query.where(DogModel.medicine.isnot(None))
+        else:
+            query = query.where(DogModel.medicine.is_(None))
+
+    if food_type is not None:
+        if food_type == "standard":
+            query = query.where(DogModel.food == "standard")
+        elif food_type == "non-standard":
+            query = query.where(DogModel.food != "standard")
+        else:
+            raise HTTPException(status_code=400, detail="Invalid food_type value (must be 'standard' or 'non-standard')")
+
+    dogs = db.execute(query).scalars().all()
+    return dogs
 
 @router.get("/{dog_id}", response_model=DogRead)
 def get_dog(dog_id, db: Session=Depends(get_db)):
@@ -26,55 +54,6 @@ def get_dog(dog_id, db: Session=Depends(get_db)):
         raise HTTPException(status_code=404, detail="Dog not found")
     
     return existing_dog
-
-@router.get("/owner/{owner_id}", response_model=list[DogRead])
-def get_dogs_by_owner(owner_id: int, db: Session=Depends(get_db)):
-    owner = db.execute(
-        select(OwnerModel).where(OwnerModel.id == owner_id)
-    ).scalars().first()
-    if not owner:
-        raise HTTPException(status_code=404, detail="Owner not found")
-    
-    dogs = db.execute(
-        select(DogModel).where(DogModel.owner_id == owner_id)
-    ).scalars().all()
-
-    if not dogs:
-        raise HTTPException(status_code=404, detail="No dogs found for this owner")
-    
-    return dogs
-
-@router.get("/name/{dog_name}", response_model=list[DogRead])
-def get_dogs_by_name(dog_name: str, db: Session=Depends(get_db)):
-    dogs = db.execute(
-        select(DogModel).where(DogModel.name == dog_name)
-    ).scalars().all()
-
-    if not dogs:
-        raise HTTPException(status_code=404, detail="No dogs found with this name")
-    
-    return dogs
-
-@router.get("/medicated", response_model=list[DogRead])
-def get_medicated_dogs(db: Session=Depends(get_db)):
-    dogs = db.execute(
-        select(DogModel).where(DogModel.medicine != None) #TODO: NIE DZIAŁA
-    ).scalars().all()
-    return dogs
-
-@router.get("/food/standard", response_model=list[DogRead])
-def get_standard_food_dogs(db: Session=Depends(get_db)):
-    dogs = db.execute(
-        select(DogModel).where(DogModel.food == "standard")
-    ).scalars().all()
-    return dogs
-
-@router.get("/food/non-standard", response_model=list[DogRead])
-def get_non_standard_food_dogs(db: Session=Depends(get_db)):
-    dogs = db.execute(
-        select(DogModel).where(DogModel.food != "standard")
-    ).scalars().all()
-    return dogs
 
 @router.post("/", response_model=DogRead)
 def create_dog(dog_data: DogCreate, db: Session=Depends(get_db)):
