@@ -23,7 +23,7 @@ class DogUpdate(BaseModel):
     medicine: Optional[str] = None
     food: Optional[str] = None
     notes: Optional[str] = None
-    owner_id: Optional[int] = None
+    owner_id: Optional[int] = None # assuming owner can change
 
     class Config:
         from_attributes = True

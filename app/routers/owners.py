@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.models.owner import Owner as OwnerModel
+from app.models.payment import Payment as PaymentModel
+from app.models.stay import Stay as StayModel
 from app.schemas.owner import OwnerRead, OwnerCreate, OwnerUpdate
 from app.database.database import get_db
 
@@ -16,7 +18,7 @@ def read_owners(db: Session=Depends(get_db)):
     return owners
 
 @router.get("/{owner_id}", response_model=OwnerRead)
-def get_owner(owner_id, db: Session=Depends(get_db)):
+def get_owner_by_id(owner_id, db: Session=Depends(get_db)):
     existing_owner = db.execute(
         select(OwnerModel).where(OwnerModel.id == owner_id)
     ).scalars().first()
@@ -25,6 +27,62 @@ def get_owner(owner_id, db: Session=Depends(get_db)):
         raise HTTPException(status_code=404, detail="Owner not found")
     
     return existing_owner
+
+@router.get("/email/{email}", response_model=OwnerRead)
+def get_owner_by_email(email: str, db: Session=Depends(get_db)):
+    existing_owner = db.execute(
+        select(OwnerModel).where(OwnerModel.email == email)
+    ).scalars().first()
+
+    if not existing_owner:
+        raise HTTPException(status_code=404, detail="Owner with this email does not exist")
+    
+    return existing_owner
+
+@router.get("/phone_number/{phone_number}", response_model=OwnerRead)
+def get_owner_by_phone_number(phone_number: str, db: Session=Depends(get_db)):
+    existing_owner = db.execute(
+        select(OwnerModel).where(OwnerModel.phone_number == phone_number)
+    ).scalars().first()
+
+    if not existing_owner:
+        raise HTTPException(status_code=404, detail="Owner not found")
+    
+    return existing_owner
+
+@router.get("/unpaid", response_model=list[OwnerRead])
+def get_unpaid_owners(db: Session=Depends(get_db)):
+    unpaid_owners = db.execute(
+        select(OwnerModel).where(OwnerModel.id == StayModel.owner_id).where(StayModel.id == PaymentModel.stay_id).where(PaymentModel.is_paid == False)
+    ).scalars().all()
+
+    if not unpaid_owners:
+        raise HTTPException(status_code=404, detail="No due owners found") #TODO: idk why ale nie ten detail mi się wyświetla w docsach
+    
+    return unpaid_owners
+
+@router.get("/overdue", response_model=list[OwnerRead])
+def get_overdue_owners(db: Session=Depends(get_db)):
+    overdue_owners = db.execute(
+        select(OwnerModel).where(OwnerModel.id == StayModel.owner_id).where(StayModel.id == PaymentModel.stay_id).where(PaymentModel.overdue_30_days > 0)
+    ).scalars().all()
+
+    if not overdue_owners:
+        raise HTTPException(status_code=404, detail="No overdue owners found") #TODO: idk why ale nie ten detail mi się wyświetla w docsach
+    
+    return overdue_owners
+
+
+@router.get("/fullname/{fullname}", response_model=list[OwnerRead])
+def get_owners_by_name(fullname: str, db: Session=Depends(get_db)): #TODO: fix this, I get Exception while typing existing fullnames
+    owners = db.execute(
+        select(OwnerModel).where(OwnerModel.fullname == fullname.strip().lower())
+    ).scalars().all()
+
+    if not owners:
+        raise HTTPException(status_code=404, detail="No owners found with this name")
+    
+    return owners
 
 @router.post("/", response_model=OwnerRead)
 def create_owner(owner_data: OwnerCreate, db: Session=Depends(get_db)):

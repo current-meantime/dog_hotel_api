@@ -12,4 +12,6 @@ class Owner(Base):
     bank_account: Mapped[int] = mapped_column(nullable=True)
 
     dogs = relationship("Dog", back_populates="owner")
-    stays = relationship("Stay", back_populates="owner")
+    stays = relationship("Stay", back_populates="owner", foreign_keys="Stay.owner_id")
+    
+    

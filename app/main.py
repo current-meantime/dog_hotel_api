@@ -2,10 +2,10 @@ from fastapi import FastAPI
 from app.database.database import Base, engine, Session
 from app.services.update import update_dog_ages
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.routers import dogs, owners
+from app.routers import dogs, owners, payments, stays
 import logging
 
-from app.models import owner, dog, stay # do not remove, they need to be initialized before create_all()
+from app.models import owner, dog, stay, payment # do not remove, they need to be initialized before create_all()
 
 Base.metadata.create_all(bind=engine)
 
@@ -13,6 +13,8 @@ app = FastAPI()
 
 app.include_router(dogs.router)
 app.include_router(owners.router)
+app.include_router(payments.router)
+app.include_router(stays.router)
 
 
 # Funkcja do uruchomienia aktualizacji raz w roku

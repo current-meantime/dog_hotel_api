@@ -68,12 +68,14 @@ def update_dog_ages(db: Session):
 
         logger.info(f"Found {len(dogs_to_update)} dogs to update.")
 
-        for dog in dogs_to_update:
-            dog.age += 1
+        if dogs_to_update:
+            for dog in dogs_to_update:
+                dog.age += 1
 
-        db.commit()
-        logger.info("Database commit successful.")
-        logger.info(f"Successfully updated ages for {len(dogs_to_update)} dogs.")
+            db.commit()
+            logger.info("Database commit successful.")
+            logger.info(f"Successfully updated ages for {len(dogs_to_update)} dogs.")
+            
     except Exception as e:
         logger.error(f"Error while updating dog ages: {str(e)}")
 
