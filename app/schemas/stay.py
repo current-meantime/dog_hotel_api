@@ -6,8 +6,8 @@ from datetime import date, datetime
 class StayCreate(BaseModel):
     start_date: date
     end_date: date
-    notes: Optional[str]
-    additional_fee_per_day: Optional[float]
+    notes: Optional[str] = None
+    additional_fee_per_day: Optional[float] = None
     owner_id: int
     dog_id: int
     
