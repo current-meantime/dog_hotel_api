@@ -3,3 +3,4 @@ __pycache__
 *.pyc
 venv
 hotel_trial.db
+.env
