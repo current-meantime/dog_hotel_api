@@ -8,14 +8,14 @@ from app.database.database import get_db
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
-@router.get("/payments", response_model=list[PaymentRead])
+@router.get("/", response_model=list[PaymentRead])
 def read_payments(db: Session = Depends(get_db)):
     payments = db.execute(
         select(Payment)
     ).scalars().all()
     return payments
 
-@router.get("/payments/{payment_id}", response_model=PaymentRead)
+@router.get("/{payment_id}", response_model=PaymentRead)
 def get_payment(payment_id: int, db: Session = Depends(get_db)):
     payment = db.execute(
         select(Payment).where(Payment.id == payment_id)
@@ -42,7 +42,7 @@ def get_overdue_payments(db: Session = Depends(get_db)):
     
     return overdue_payments
 
-@router.post("/payments", response_model=PaymentRead) #TODO: wywoływać tę funkcję automatycznie przy tworzeniu stay
+@router.post("/", response_model=PaymentRead) #TODO: wywoływać tę funkcję automatycznie przy tworzeniu stay
 def create_payment(payment_create: PaymentCreate, db: Session = Depends(get_db)):
     stay = db.execute(select(Stay).where(Stay.id == payment_create.stay_id)).scalars().first()
     if not stay:
