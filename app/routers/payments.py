@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from app.models.payment import PaymentModel
+from app.models.payment import Payment as PaymentModel
 from app.models.stay import Stay
 from app.schemas.payment import PaymentCreate, PaymentRead
 from app.database.database import get_db
@@ -59,3 +59,17 @@ def create_payment(payment_create: PaymentCreate, db: Session = Depends(get_db))
     db.commit()
     db.refresh(payment)
     return payment
+
+@router.delete("/{payment_id}", response_model=PaymentRead)
+def delete_dog(payment_id, db: Session=Depends(get_db)):
+    existing_payment = db.execute(
+        select(PaymentModel).where(PaymentModel.id == payment_id)
+    ).scalars().first()
+
+    if not existing_payment:
+        raise HTTPException(status_code=400, detail="Stay does not exist")
+    
+    db.delete(existing_payment)
+    db.commit()
+
+    return existing_payment
