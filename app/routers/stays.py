@@ -16,12 +16,17 @@ def search_stays(
     min_days: Optional[int] = None,
     max_days: Optional[int] = None,
     status: Optional[str] = None, # "upcoming", "ongoing", "ending_soon"
-    db: Session = Depends(get_db)
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    day: Optional[int] = None,
+    start_date_from: Optional[date] = None,
+    start_date_to: Optional[date] = None,
+    db: Session = Depends(get_db),
 ):
     query = select(StayModel)
-
     today = date.today()
 
+    # Filtruj status (upcoming, ongoing, ending_soon)
     if status:
         if status == "upcoming":
             query = query.where(StayModel.start_date > today)
@@ -39,15 +44,28 @@ def search_stays(
         else:
             raise HTTPException(status_code=400, detail="Invalid status value")
 
+    # Filtruj po długości pobytu
     if min_days is not None:
         query = query.where(
             func.julianday(StayModel.end_date) - func.julianday(StayModel.start_date) + 1 >= min_days
         )
-
     if max_days is not None:
         query = query.where(
             func.julianday(StayModel.end_date) - func.julianday(StayModel.start_date) + 1 <= max_days
         )
+
+    # Filtruj po dacie rozpoczęcia
+    if year:
+        query = query.where(extract('year', StayModel.start_date) == year)
+    if month:
+        query = query.where(extract('month', StayModel.start_date) == month)
+    if day:
+        query = query.where(extract('day', StayModel.start_date) == day)
+
+    if start_date_from:
+        query = query.where(StayModel.start_date >= start_date_from)
+    if start_date_to:
+        query = query.where(StayModel.start_date <= start_date_to)
 
     stays = db.execute(query).scalars().all()
 
@@ -63,61 +81,6 @@ def get_stay(stay_id, db: Session=Depends(get_db)):
         raise HTTPException(status_code=404, detail="Stay not found")
     
     return existing_stay
-
-@router.get("/by-year/{year}", response_model=list[StayRead])
-def get_stays_by_year(year: int, db: Session = Depends(get_db)):
-    stays = db.execute(
-        select(StayModel).where(extract('year', StayModel.start_date) == year)
-    ).scalars().all()
-
-    if not stays:
-        raise HTTPException(status_code=404, detail="No stays found for the given year")
-    
-    return stays
-
-@router.get("/by-year-month/{year}/{month}", response_model=list[StayRead])
-def get_stays_by_year_month(year: int, month: int, db: Session = Depends(get_db)):
-    stays = db.execute(
-        select(StayModel).where(
-            extract('year', StayModel.start_date) == year,
-            extract('month', StayModel.start_date) == month
-        )
-    ).scalars().all()
-
-    if not stays:
-        raise HTTPException(status_code=404, detail="No stays found for the given year and month")
-    
-    return stays
-
-@router.get("/by-month-day/{month}/{day}", response_model=list[StayRead])
-def get_stays_by_month_day(month: int, day: int, db: Session = Depends(get_db)):
-    stays = db.execute(
-        select(StayModel).where(
-            extract('month', StayModel.start_date) == month,
-            extract('day', StayModel.start_date) == day
-        )
-    ).scalars().all()
-
-    if not stays:
-        raise HTTPException(status_code=404, detail="No stays found for the given month and day")
-    
-    return stays
-
-@router.get("/by-exact-date/{year}/{month}/{day}", response_model=list[StayRead])
-def get_stays_by_exact_date(year: int, month: int, day: int, db: Session = Depends(get_db)):
-    try:
-        target_date = date(year, month, day)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date")
-
-    stays = db.execute(
-        select(StayModel).where(StayModel.start_date == target_date)
-    ).scalars().all()
-
-    if not stays:
-        raise HTTPException(status_code=404, detail="No stays found for the given exact date")
-    
-    return stays
 
 @router.post("/", response_model=StayRead) #TODO: add date validation or check if it's by default validated in pydantic model
 def create_stay(stay_data: StayCreate, db: Session=Depends(get_db)):
