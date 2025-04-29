@@ -129,7 +129,9 @@ def create_stay(stay_data: StayCreate, db: Session = Depends(get_db)):
     payment = PaymentModel(
         stay_id=new_stay.id,
         is_paid=False,
-        overdue_30_days=0
+        is_overdue=0,
+        overdue_days=0
+        
     )
     payment.amount = payment.calculate_amount()
 
