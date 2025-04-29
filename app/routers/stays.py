@@ -9,6 +9,10 @@ from app.schemas.stay import StayRead, StayCreate, StayUpdate
 from app.database.database import get_db
 from datetime import date, timedelta
 from typing import Optional
+import logging
+
+log = logging.getLogger("stays_logger")
+log.setLevel(logging.INFO)
 
 router = APIRouter(prefix="/stays", tags=["Stays"])
 
@@ -138,6 +142,7 @@ def create_stay(stay_data: StayCreate, db: Session = Depends(get_db)):
         payment.amount = payment.calculate_amount(db)
     except Exception as e:
         db.rollback()
+        log.error(f"Error calculating payment: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error calculating payment: {str(e)}")
 
     db.add(payment)
