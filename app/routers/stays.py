@@ -22,6 +22,8 @@ def search_stays(
     day: Optional[int] = None,
     start_date_from: Optional[date] = None,
     start_date_to: Optional[date] = None,
+    dog_id: Optional[int] = None,
+    owner_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     query = select(StayModel)
@@ -67,6 +69,12 @@ def search_stays(
         query = query.where(StayModel.start_date >= start_date_from)
     if start_date_to:
         query = query.where(StayModel.start_date <= start_date_to)
+        
+    if dog_id is not None:
+        query = query.where(StayModel.dog_id == dog_id)
+
+    if owner_id is not None:
+        query = query.where(StayModel.owner_id == owner_id)
 
     stays = db.execute(query).scalars().all()
 
