@@ -7,8 +7,11 @@ import logging
 from app.routers import bank_transfers
 from app.routers import bank_transfer_scheduler
 from app.services.update_payments_from_transfers import update_payments_from_transfers
+from app.utils.logging_config import setup_logging
 
 from app.models import owner, dog, stay, payment  # do not remove, they need to be initialized before create_all()
+
+setup_logging()
 
 Base.metadata.create_all(bind=engine)
 
