@@ -11,10 +11,8 @@ from datetime import date, timedelta
 from typing import Optional
 import logging
 
-log = logging.getLogger("stays_logger")
-log.setLevel(logging.INFO)
-
 router = APIRouter(prefix="/stays", tags=["Stays"])
+log = logging.getLogger(__name__)
 
 @router.get("/", response_model=list[StayRead])
 def search_stays(
@@ -123,6 +121,10 @@ def create_stay(stay_data: StayCreate, db: Session = Depends(get_db)):
     if overlapping_stay:
         raise HTTPException(status_code=400, detail="Overlapping stay exists for this dog and owner")
 
+    if stay_data.end_date < stay_data.start_date:
+        log.warning(f"Invalid stay date range: start={stay_data.start_date}, end={stay_data.end_date}")
+        raise HTTPException(status_code=400, detail="End date cannot be earlier than start date.")
+
     # Tworzymy nowy pobyt
     new_stay = StayModel(**stay_data.model_dump())
     db.add(new_stay)
@@ -158,16 +160,33 @@ def update_stay(stay_id: int, update_data: StayUpdate, db: Session = Depends(get
     ).scalars().first()
 
     if not existing_stay:
-        raise HTTPException(status_code=400, detail="Stay doesn't exist")
+        log.warning(f"Update failed: Stay with ID {stay_id} not found.")
+        raise HTTPException(status_code=404, detail="Stay doesn't exist")
 
-    # Aktualizujemy dane pobytu
-    for key, value in update_data.model_dump(exclude_unset=True).items():
-        setattr(existing_stay, key, value)
-        
-    db.commit()
-    db.refresh(existing_stay)
-    
-    return existing_stay
+    # Ustal nowe daty (z danych aktualizacji lub obecnych z bazy)
+    new_start = update_data.start_date or existing_stay.start_date
+    new_end = update_data.end_date or existing_stay.end_date
+
+    # Walidacja dat
+    if new_end < new_start:
+        log.warning(f"Invalid date update for stay {stay_id}: start={new_start}, end={new_end}")
+        raise HTTPException(status_code=400, detail="End date cannot be earlier than start date.")
+
+    try:
+        for key, value in update_data.model_dump(exclude_unset=True).items():
+            setattr(existing_stay, key, value)
+
+        db.commit()
+        db.refresh(existing_stay)
+
+        log.info(f"Stay {stay_id} successfully updated.")
+        return existing_stay
+
+    except Exception as e:
+        db.rollback()
+        log.error(f"Error updating stay {stay_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update stay.")
+
 
 @router.delete("/{stay_id}", response_model=StayRead)
 def delete_dog(stay_id, db: Session=Depends(get_db)):
