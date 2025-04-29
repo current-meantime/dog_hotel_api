@@ -11,7 +11,7 @@ class StayCreate(BaseModel):
     owner_id: int
     dog_id: int
     
-    @field_validator("end_date", mode="before")
+    @field_validator("end_date")
     @classmethod
     def validate_date_range(cls, end_date, values):
         # Tylko jeśli start_date i end_date są obecne w danych
@@ -36,7 +36,7 @@ class StayUpdate(BaseModel):
     notes: Optional[str]
     additional_fee_per_day: Optional[float]
     
-    @field_validator("end_date", mode="before")
+    @field_validator("end_date")
     @classmethod
     def validate_date_range(cls, end_date, values):
         # Tylko jeśli start_date i end_date są obecne w danych
