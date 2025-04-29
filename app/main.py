@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app.database.database import Base, engine, Session
-from app.services.update import update_dog_ages
+from app.services.update_dog_ages import update_dog_ages
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.routers import dogs, owners, payments, stays
 import logging

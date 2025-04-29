@@ -30,38 +30,12 @@ if not logger.handlers:  # Avoid adding handlers multiple times
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 
-#TODO make this one for postgres
-"""
 def update_dog_ages(db: Session):
     try:
         logger.info("Starting dog age update process.")
-        one_year_ago = datetime.now(timezone.utc) - timedelta(minutes=1)
+        one_year_ago = datetime.now(timezone.utc) - timedelta(days=365)
         logger.info(f"Fetching dogs added before: {one_year_ago}")
 
-        dogs_to_update = db.execute(
-            select(Dog).where(func.timezone('UTC', Dog.created_at) <= one_year_ago)
-        ).scalars().all()
-
-        logger.info(f"Found {len(dogs_to_update)} dogs to update.")
-
-        for dog in dogs_to_update:
-            dog.age += 1
-
-        db.commit()
-        logger.info("Database commit successful.")
-        logger.info(f"Successfully updated ages for {len(dogs_to_update)} dogs.")
-    except Exception as e:
-        logger.error(f"Error while updating dog ages: {str(e)}")
-"""
-
-# for sqlite
-def update_dog_ages(db: Session):
-    try:
-        logger.info("Starting dog age update process.")
-        one_year_ago = datetime.now(timezone.utc) - timedelta(minutes=1)  # Adjusted for debugging;  # change to days=365
-        logger.info(f"Fetching dogs added before: {one_year_ago}")
-
-        # Adjust the query to compare directly with UTC timestamps
         dogs_to_update = db.execute(
             select(Dog).where(Dog.created_at <= one_year_ago)
         ).scalars().all()
@@ -75,9 +49,6 @@ def update_dog_ages(db: Session):
             db.commit()
             logger.info("Database commit successful.")
             logger.info(f"Successfully updated ages for {len(dogs_to_update)} dogs.")
-            
+
     except Exception as e:
         logger.error(f"Error while updating dog ages: {str(e)}")
-
-
-
