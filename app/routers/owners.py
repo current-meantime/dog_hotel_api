@@ -28,7 +28,7 @@ def filter_owners(
         if unpaid:
             stmt = stmt.where(PaymentModel.is_paid == False)
         if overdue:
-            stmt = stmt.where(PaymentModel.overdue_30_days > 0)
+            stmt = stmt.where(PaymentModel.is_overdue > 0)
 
     owners = db.execute(stmt).scalars().all()
 
