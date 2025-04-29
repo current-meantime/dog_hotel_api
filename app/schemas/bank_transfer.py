@@ -8,6 +8,9 @@ class BankTransferCreate(BaseModel):
     title: str
     amount: float
     received_at: Optional[datetime] = None
+    
+    class Config:
+        extra = "forbid"  # Disallow extra fields
 
 class BankTransferRead(BankTransferCreate):
     id: int

@@ -11,11 +11,14 @@ class DogCreate(BaseModel):
     owner_id: int
 
     class Config:
-        from_attributes = True
+        extra = "forbid"  # Disallow extra fields
 
 class DogRead(DogCreate):
     id: int
     created_at: datetime
+    
+    class Config:
+        from_attributes = True
 
 class DogUpdate(BaseModel):
     name: Optional[str] = None
@@ -25,5 +28,4 @@ class DogUpdate(BaseModel):
     notes: Optional[str] = None
     owner_id: Optional[int] = None # assuming owner can change
 
-    class Config:
-        from_attributes = True
+    

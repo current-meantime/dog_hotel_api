@@ -8,16 +8,16 @@ class OwnerCreate(BaseModel):
     bank_account: Optional[int] = None
 
     class Config:
-        from_attributes = True
+        extra = "forbid"  # Disallow extra fields
 
 class OwnerRead(OwnerCreate):
     id: int
+    
+    class Config:
+        from_attributes = True
 
 class OwnerUpdate(BaseModel):
     fullname: Optional[str] = None
     email: Optional[str] = None
     phone_number: Optional[str] = None
     bank_account: Optional[int] = None
-
-    class Config:
-        from_attributes = True

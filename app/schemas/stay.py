@@ -12,18 +12,18 @@ class StayCreate(BaseModel):
     dog_id: int
     
     class Config:
-        from_attributes = True  # Enable ORM mode to read data from ORM models
-    
+        extra = "forbid" # Disallow extra fields
+        
 class StayRead(StayCreate):
     id: int
     created_at: datetime
+    
+    class Config:
+        from_attributes = True  # Enable ORM mode to read data from ORM models
     
 class StayUpdate(BaseModel):
     start_date: Optional[date]
     end_date: Optional[date]
     notes: Optional[str]
     additional_fee_per_day: Optional[float]
-    
-    class Config:
-        from_attributes = True  # Enable ORM mode to read data from ORM models
     
