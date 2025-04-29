@@ -28,6 +28,13 @@ def search_stays(
     owner_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
+    log.info(
+        f"Searching stays with filters: min_days={min_days}, max_days={max_days}, "
+        f"status={status}, year={year}, month={month}, day={day}, "
+        f"start_date_from={start_date_from}, start_date_to={start_date_to}, "
+        f"dog_id={dog_id}, owner_id={owner_id}"
+    )
+    
     query = select(StayModel)
     today = date.today()
 
@@ -84,22 +91,26 @@ def search_stays(
 
 @router.get("/{stay_id}", response_model=StayRead)
 def get_stay(stay_id, db: Session=Depends(get_db)):
+    log.info(f"Fetching stay with id: {stay_id}")
     existing_stay = db.execute(
         select(StayModel).where(StayModel.id == stay_id)
     ).scalars().first()
 
     if not existing_stay:
+        log.warning(f"Stay with id {stay_id} not found")
         raise HTTPException(status_code=404, detail="Stay not found")
     
     return existing_stay
 
 @router.post("/", response_model=StayRead) #TODO: add date validation or check if it's by default validated in pydantic model
 def create_stay(stay_data: StayCreate, db: Session = Depends(get_db)):
+    log.info(f"Creating new stay for dog_id: {stay_data.dog_id}, owner_id: {stay_data.owner_id}")
     # Sprawdzamy, czy właściciel istnieje
     owner = db.execute(
         select(OwnerModel).where(OwnerModel.id == stay_data.owner_id)
     ).scalars().first()
     if not owner:
+        log.error(f"Owner with id {stay_data.owner_id} not found")
         raise HTTPException(status_code=400, detail="Owner does not exist")
 
     # Sprawdzamy, czy pies istnieje
@@ -107,6 +118,7 @@ def create_stay(stay_data: StayCreate, db: Session = Depends(get_db)):
         select(DogModel).where(DogModel.id == stay_data.dog_id)
     ).scalars().first()
     if not dog:
+        log.error(f"Dog with id {stay_data.dog_id} not found")
         raise HTTPException(status_code=400, detail="Dog does not exist")
 
     # Sprawdzamy, czy nie istnieje nakładający się pobyt
@@ -119,42 +131,44 @@ def create_stay(stay_data: StayCreate, db: Session = Depends(get_db)):
         )
     ).scalars().first()
     if overlapping_stay:
+        log.warning(
+            f"Overlapping stay found for dog_id: {stay_data.dog_id}, "
+            f"owner_id: {stay_data.owner_id}, dates: {stay_data.start_date} - {stay_data.end_date}"
+        )
         raise HTTPException(status_code=400, detail="Overlapping stay exists for this dog and owner")
 
     if stay_data.end_date < stay_data.start_date:
         log.warning(f"Invalid stay date range: start={stay_data.start_date}, end={stay_data.end_date}")
         raise HTTPException(status_code=400, detail="End date cannot be earlier than start date.")
 
-    # Tworzymy nowy pobyt
-    new_stay = StayModel(**stay_data.model_dump())
-    db.add(new_stay)
-    db.commit()
-    db.refresh(new_stay)
-
-    # Tworzymy płatność dla tego pobytu
-    payment = PaymentModel(
-        stay_id=new_stay.id,
-        is_paid=False,
-        is_overdue=0,
-        overdue_days=0
-        
-    )
-    
     try:
+        new_stay = StayModel(**stay_data.model_dump())
+        db.add(new_stay)
+        db.commit()
+        db.refresh(new_stay)
+        
+        payment = PaymentModel(
+            stay_id=new_stay.id,
+            is_paid=False,
+            is_overdue=0,
+            overdue_days=0
+        )
         payment.amount = payment.calculate_amount(db)
+        db.add(payment)
+        db.commit()
+        db.refresh(payment)
+        
+        log.info(f"Successfully created stay {new_stay.id} with payment {payment.id}")
+        return new_stay
+        
     except Exception as e:
         db.rollback()
-        log.error(f"Error calculating payment: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error calculating payment: {str(e)}")
-
-    db.add(payment)
-    db.commit()
-    db.refresh(payment)
-
-    return new_stay
+        log.error(f"Error creating stay: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error creating stay: {str(e)}")
 
 @router.put("/{stay_id}", response_model=StayRead)
 def update_stay(stay_id: int, update_data: StayUpdate, db: Session = Depends(get_db)):
+    log.info(f"Updating stay {stay_id}")
     existing_stay = db.execute(
         select(StayModel).where(StayModel.id == stay_id)
     ).scalars().first()
@@ -190,17 +204,24 @@ def update_stay(stay_id: int, update_data: StayUpdate, db: Session = Depends(get
 
 @router.delete("/{stay_id}", response_model=StayRead)
 def delete_dog(stay_id, db: Session=Depends(get_db)):
+    log.info(f"Attempting to delete stay {stay_id}")
     existing_stay = db.execute(
         select(StayModel).where(StayModel.id == stay_id)
     ).scalars().first()
 
     if not existing_stay:
+        log.warning(f"Stay {stay_id} not found for deletion")
         raise HTTPException(status_code=400, detail="Stay does not exist")
     
-    db.delete(existing_stay)
-    db.commit()
-
-    return existing_stay
+    try:
+        db.delete(existing_stay)
+        db.commit()
+        log.info(f"Successfully deleted stay {stay_id}")
+        return existing_stay
+    except Exception as e:
+        log.error(f"Error deleting stay {stay_id}: {str(e)}", exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to delete stay")
 
 
 
