@@ -9,11 +9,31 @@ from app.database.database import get_db
 
 router = APIRouter(prefix="/owners", tags=["Owners"])
 
-@router.get("/", response_model=list[OwnerRead])
-def read_owners(db: Session=Depends(get_db)):
-    owners = db.execute(
-        select(OwnerModel)
-    ).scalars().all()
+@router.get("/filter", response_model=list[OwnerRead])
+def filter_owners(
+    fullname: str = None,
+    unpaid: bool = False,
+    overdue: bool = False,
+    db: Session = Depends(get_db)
+):
+    stmt = select(OwnerModel)
+
+    if fullname:
+        stmt = stmt.where(OwnerModel.fullname.ilike(fullname.strip().lower())) #TODO: spr czy w dog router też jest ilike
+
+    if unpaid or overdue:
+        stmt = stmt.join(StayModel, StayModel.owner_id == OwnerModel.id).join(
+            PaymentModel, PaymentModel.stay_id == StayModel.id
+        )
+        if unpaid:
+            stmt = stmt.where(PaymentModel.is_paid == False)
+        if overdue:
+            stmt = stmt.where(PaymentModel.overdue_30_days > 0)
+
+    owners = db.execute(stmt).scalars().all()
+
+    if not owners:
+        raise HTTPException(status_code=404, detail="No owners matched the given filters")
 
     return owners
 
@@ -28,50 +48,6 @@ def get_owner_by_id(owner_id, db: Session=Depends(get_db)):
     
     return existing_owner
 
-@router.get("/email/{email}", response_model=OwnerRead)
-def get_owner_by_email(email: str, db: Session=Depends(get_db)):
-    existing_owner = db.execute(
-        select(OwnerModel).where(OwnerModel.email == email)
-    ).scalars().first()
-
-    if not existing_owner:
-        raise HTTPException(status_code=404, detail="Owner with this email does not exist")
-    
-    return existing_owner
-
-@router.get("/phone_number/{phone_number}", response_model=OwnerRead)
-def get_owner_by_phone_number(phone_number: str, db: Session=Depends(get_db)):
-    existing_owner = db.execute(
-        select(OwnerModel).where(OwnerModel.phone_number == phone_number)
-    ).scalars().first()
-
-    if not existing_owner:
-        raise HTTPException(status_code=404, detail="Owner not found")
-    
-    return existing_owner
-
-@router.get("/unpaid", response_model=list[OwnerRead])
-def get_unpaid_owners(db: Session=Depends(get_db)):
-    unpaid_owners = db.execute(
-        select(OwnerModel).where(OwnerModel.id == StayModel.owner_id).where(StayModel.id == PaymentModel.stay_id).where(PaymentModel.is_paid == False)
-    ).scalars().all()
-
-    if not unpaid_owners:
-        raise HTTPException(status_code=404, detail="No due owners found") #TODO: idk why ale nie ten detail mi się wyświetla w docsach
-    
-    return unpaid_owners
-
-@router.get("/overdue", response_model=list[OwnerRead])
-def get_overdue_owners(db: Session=Depends(get_db)):
-    overdue_owners = db.execute(
-        select(OwnerModel).where(OwnerModel.id == StayModel.owner_id).where(StayModel.id == PaymentModel.stay_id).where(PaymentModel.overdue_30_days > 0)
-    ).scalars().all()
-
-    if not overdue_owners:
-        raise HTTPException(status_code=404, detail="No overdue owners found") #TODO: idk why ale nie ten detail mi się wyświetla w docsach
-    
-    return overdue_owners
-
 
 @router.get("/fullname/{fullname}", response_model=list[OwnerRead])
 def get_owners_by_name(fullname: str, db: Session=Depends(get_db)): #TODO: fix this, I get Exception while typing existing fullnames
@@ -84,28 +60,7 @@ def get_owners_by_name(fullname: str, db: Session=Depends(get_db)): #TODO: fix t
     
     return owners
 
-@router.post("/", response_model=OwnerRead)
-def create_owner(owner_data: OwnerCreate, db: Session=Depends(get_db)):
-    existing_email = db.execute(
-        select(OwnerModel).where(OwnerModel.email == owner_data.email)
-    ).scalars().first()
 
-    if existing_email:
-        raise HTTPException(status_code=400, detail="Owner with this email already exists")
-    
-    existing_phone_number = db.execute(
-        select(OwnerModel).where(OwnerModel.email == owner_data.email)
-    ).scalars().first()
-
-    if existing_phone_number:
-        raise HTTPException(status_code=400, detail="Owner with this phone_number already exists")
-    
-    new_owner = OwnerModel(**owner_data.model_dump())
-    db.add(new_owner)
-    db.commit()
-    db.refresh(new_owner)
-
-    return new_owner
 
 @router.put("/{owner_id}", response_model=OwnerRead)
 def update_owner(owner_id: int, update_data: OwnerUpdate, db: Session = Depends(get_db)):
@@ -144,6 +99,28 @@ def update_owner(owner_id: int, update_data: OwnerUpdate, db: Session = Depends(
 
     return existing_owner
 
+@router.post("/", response_model=OwnerRead)
+def create_owner(owner_data: OwnerCreate, db: Session=Depends(get_db)):
+    existing_email = db.execute(
+        select(OwnerModel).where(OwnerModel.email == owner_data.email)
+    ).scalars().first()
+
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Owner with this email already exists")
+    
+    existing_phone_number = db.execute(
+        select(OwnerModel).where(OwnerModel.email == owner_data.email)
+    ).scalars().first()
+
+    if existing_phone_number:
+        raise HTTPException(status_code=400, detail="Owner with this phone_number already exists")
+    
+    new_owner = OwnerModel(**owner_data.model_dump())
+    db.add(new_owner)
+    db.commit()
+    db.refresh(new_owner)
+
+    return new_owner
 
 @router.delete("/{owner_id}", response_model=OwnerRead)
 def delete_owner(owner_id, db: Session=Depends(get_db)):
