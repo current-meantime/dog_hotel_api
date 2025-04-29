@@ -1,44 +1,86 @@
+import logging
+import os
+from datetime import datetime, timezone
+
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from app.models.bank_transfer import BankTransfer
+
 from app.models.payment import Payment
+from app.models.bank_transfer import BankTransfer
 from app.models.stay import Stay
-from app.models.owner import Owner
-import re
 
-def parse_stay_id_from_title(title: str) -> int | None:
-    match = re.search(r"stay[ _-]?(\d+)", title.lower())
-    return int(match.group(1)) if match else None
+# Tworzenie katalogu 'logs', jeśli nie istnieje
+log_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'logs')
+os.makedirs(log_dir, exist_ok=True)
 
-def process_bank_transfers(db: Session):
-    unmatched_transfers = db.execute(
-        select(BankTransfer).where(BankTransfer.matched_payment_id.is_(None))
-    ).scalars().all()
+# Logger
+logger = logging.getLogger("payment_update_logger")
+logger.setLevel(logging.INFO)
 
-    for transfer in unmatched_transfers:
-        stay_id = parse_stay_id_from_title(transfer.title)
-        if not stay_id:
-            continue
+# File handler
+file_handler = logging.FileHandler(os.path.join(log_dir, 'payment_update.log'))
+file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
 
-        stay = db.execute(select(Stay).where(Stay.id == stay_id)).scalars().first()
-        if not stay:
-            continue
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
 
-        owner = stay.owner
-        if owner and owner.bank_account == transfer.from_account:
-            payment = db.execute(
-                select(Payment).where(Payment.stay_id == stay.id)
-            ).scalars().first()
+# Add handlers if not already added
+if not logger.handlers:
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
 
-            if payment:
-                payment.amount -= transfer.amount  # Zakładamy, że nadpłaty nie istnieją
-                if payment.amount <= 0:
-                    payment.amount = 0
+
+def update_payments_from_transfers(db: Session):
+    logger.info("Starting payment update from bank transfers")
+
+    try:
+        transfers = db.execute(select(BankTransfer)).scalars().all()
+        logger.info(f"Found {len(transfers)} bank transfers")
+
+        updated_count = 0
+
+        for transfer in transfers:
+            try:
+                stay_id = int(transfer.transfer_title.strip())
+                payment = db.execute(
+                    select(Payment).where(Payment.stay_id == stay_id)
+                ).scalars().first()
+
+                if not payment:
+                    logger.warning(f"No payment found for stay_id: {stay_id}")
+                    continue
+
+                required_amount = payment.calculate_amount()
+                received_amount = transfer.amount
+
+                if received_amount >= required_amount:
+                    payment.amount = required_amount
                     payment.is_paid = True
                     payment.is_overdue = False
                     payment.overdue_days = 0
+                    logger.info(f"Marked payment for stay_id {stay_id} as fully paid")
+                else:
+                    payment.amount = received_amount
+                    payment.is_paid = False
+                    payment.is_overdue = True
 
-                transfer.matched_payment_id = payment.id
-                db.add_all([transfer, payment])
-    
-    db.commit()
+                    # Licz dni od zakończenia pobytu
+                    today = datetime.now(timezone.utc).date()
+                    overdue_days = (today - payment.stay.end_date).days
+                    payment.overdue_days = max(0, overdue_days)
+
+                    logger.info(
+                        f"Partial payment for stay_id {stay_id}: received {received_amount}, required {required_amount}. Overdue days set to {payment.overdue_days}"
+                    )
+
+                updated_count += 1
+
+            except Exception as e:
+                logger.error(f"Failed to process transfer {transfer.id}: {e}")
+
+        db.commit()
+        logger.info(f"Finished updating payments. Total updated: {updated_count}")
+
+    except Exception as e:
+        logger.error(f"Error while updating payments from transfers: {e}")
