@@ -133,7 +133,12 @@ def create_stay(stay_data: StayCreate, db: Session = Depends(get_db)):
         overdue_days=0
         
     )
-    payment.amount = payment.calculate_amount()
+    
+    try:
+        payment.amount = payment.calculate_amount(db)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error calculating payment: {str(e)}")
 
     db.add(payment)
     db.commit()
