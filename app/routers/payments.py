@@ -5,29 +5,35 @@ from app.models.payment import Payment as PaymentModel
 from app.models.stay import Stay
 from app.schemas.payment import PaymentCreate, PaymentRead
 from app.database.database import get_db
+from typing import Optional
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
 @router.get("/", response_model=list[PaymentRead])
 def search_payments(
-    stay_id: int = None,
-    is_paid: bool = None,
-    overdue_only: bool = None,
+    stay_id: Optional[bool] = False,
+    is_paid: Optional[bool] = False,
+    is_overdue: Optional[bool] = False,
+    is_overdue_30_days: Optional[bool] = None,
     db: Session = Depends(get_db),
 ):
-    query = select(PaymentModel)
+    stmt = select(PaymentModel)
 
     if stay_id is not None:
-        query = query.where(PaymentModel.stay_id == stay_id)
+        stmt = stmt.where(PaymentModel.stay_id == stay_id)
 
     if is_paid is not None:
-        query = query.where(PaymentModel.is_paid == is_paid)
+        stmt = stmt.where(PaymentModel.is_paid == is_paid)
 
-    if overdue_only:
-        query = query.where(PaymentModel.overdue_30_days > 0)
+    if is_overdue is not None:
+        stmt = stmt.where(PaymentModel.is_overdue == is_overdue)
 
-    payments = db.execute(query).scalars().all()
+    if is_overdue_30_days:
+        stmt = stmt.where(PaymentModel.overdue_days >= 30)
+
+    payments = db.execute(stmt).scalars().all()
     return payments
+
 
 @router.get("/{payment_id}", response_model=PaymentRead)
 def get_payment(payment_id: int, db: Session = Depends(get_db)):
@@ -47,10 +53,11 @@ def create_payment(payment_create: PaymentCreate, db: Session = Depends(get_db))
         raise HTTPException(status_code=404, detail="Stay not found")
 
     payment = PaymentModel(
-        stay_id=stay.id,
-        is_paid=payment_create.is_paid,
-        overdue_30_days=payment_create.overdue_30_days
-    )
+    stay_id=stay.id,
+    is_paid=payment_create.is_paid,
+    is_overdue=payment_create.is_overdue,
+    overdue_days=payment_create.overdue_days
+)
     
     # Wyliczamy kwotę na podstawie metody calculate_amount
     payment.amount = payment.calculate_amount()
