@@ -11,15 +11,6 @@ class StayCreate(BaseModel):
     owner_id: int
     dog_id: int
     
-    @field_validator("end_date")
-    @classmethod
-    def validate_date_range(cls, end_date, values):
-        # Tylko jeśli start_date i end_date są obecne w danych
-        start_date = values.get("start_date")
-        if start_date and end_date and end_date < start_date:
-            raise ValueError("End date cannot be earlier than start date.")
-        return end_date
-    
     class Config:
         extra = "forbid" # Disallow extra fields
         
@@ -36,12 +27,5 @@ class StayUpdate(BaseModel):
     notes: Optional[str]
     additional_fee_per_day: Optional[float]
     
-    @field_validator("end_date")
-    @classmethod
-    def validate_date_range(cls, end_date, values):
-        # Tylko jeśli start_date i end_date są obecne w danych
-        start_date = values.get("start_date")
-        if start_date and end_date and end_date < start_date:
-            raise ValueError("End date cannot be earlier than start date.")
-        return end_date
+
     
