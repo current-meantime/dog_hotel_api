@@ -55,6 +55,15 @@ def create_payment(payment_create: PaymentCreate, db: Session = Depends(get_db))
     stay = db.execute(select(StayModel).where(StayModel.id == payment_create.stay_id)).scalars().first()
     if not stay:
         raise HTTPException(status_code=404, detail="Stay not found")
+    
+    existing_payment = db.execute(
+        select(PaymentModel).where(
+            PaymentModel.stay_id == payment_create.stay_id
+        )
+    ).scalars().first()
+    
+    if existing_payment:
+        raise HTTPException(status_code=400, detail="Payment already exists for this stay")
 
     payment = PaymentModel(
     stay_id=stay.id,
@@ -64,7 +73,7 @@ def create_payment(payment_create: PaymentCreate, db: Session = Depends(get_db))
 )
     
     # Wyliczamy kwotę na podstawie metody calculate_amount
-    payment.amount = payment.calculate_amount()
+    payment.amount = payment.calculate_amount(db)
 
     db.add(payment)
     db.commit()
@@ -72,7 +81,7 @@ def create_payment(payment_create: PaymentCreate, db: Session = Depends(get_db))
     return payment
 
 @router.delete("/{payment_id}", response_model=PaymentRead)
-def delete_dog(payment_id, db: Session=Depends(get_db)):
+def delete_payment(payment_id, db: Session=Depends(get_db)):
     existing_payment = db.execute(
         select(PaymentModel).where(PaymentModel.id == payment_id)
     ).scalars().first()
