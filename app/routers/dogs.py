@@ -14,7 +14,7 @@ def search_dogs(
     owner_id: Optional[int] = None,
     name: Optional[str] = None,
     medicated: Optional[bool] = None,
-    food_type: Optional[str] = None,  # "standard" lub "non-standard"
+    special_food: Optional[bool] = None,  # "standard" lub "non-standard"
     notes: Optional[bool] = None,
     db: Session = Depends(get_db),
 ):
@@ -35,13 +35,11 @@ def search_dogs(
         else:
             query = query.where(DogModel.medicine.is_(None))
 
-    if food_type is not None:
-        if food_type == "standard":
+    if special_food is not None:
+        if special_food:
             query = query.where(DogModel.food == "standard")
-        elif food_type == "non-standard":
-            query = query.where(DogModel.food != "standard")
         else:
-            raise HTTPException(status_code=400, detail="Invalid food_type value (must be 'standard' or 'non-standard')")
+            query = query.where(DogModel.food != "standard")
         
     if notes is True:
         query = query.where(DogModel.notes.isnot(None)).where(DogModel.notes != "")
