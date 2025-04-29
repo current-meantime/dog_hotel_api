@@ -11,7 +11,7 @@ from typing import Optional
 router = APIRouter(prefix="/owners", tags=["Owners"])
 
 @router.get("/", response_model=list[OwnerRead])
-def filter_owners(
+def search_owners(
     fullname: Optional[str] = None,
     email: Optional[str] = None,
     phone_number: Optional[int] = None,
