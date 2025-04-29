@@ -11,9 +11,9 @@ router = APIRouter(prefix="/payments", tags=["Payments"])
 
 @router.get("/", response_model=list[PaymentRead])
 def search_payments(
-    stay_id: Optional[bool] = False,
-    is_paid: Optional[bool] = False,
-    is_overdue: Optional[bool] = False,
+    stay_id: Optional[bool] = None,
+    is_paid: Optional[bool] = None,
+    is_overdue: Optional[bool] = None,
     is_overdue_30_days: Optional[bool] = None,
     db: Session = Depends(get_db),
 ):
