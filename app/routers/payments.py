@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.models.payment import Payment as PaymentModel
-from app.models.stay import Stay
+from app.models.stay import Stay as StayModel
 from app.schemas.payment import PaymentCreate, PaymentRead
 from app.database.database import get_db
 from typing import Optional
@@ -15,6 +15,7 @@ def search_payments(
     is_paid: Optional[bool] = None,
     is_overdue: Optional[bool] = None,
     is_overdue_30_days: Optional[bool] = None,
+    owner_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     stmt = select(PaymentModel)
@@ -30,6 +31,9 @@ def search_payments(
 
     if is_overdue_30_days:
         stmt = stmt.where(PaymentModel.overdue_days >= 30)
+        
+    if owner_id is not None:
+        stmt = stmt.where(StayModel.owner_id == owner_id)
 
     payments = db.execute(stmt).scalars().all()
     return payments
@@ -48,7 +52,7 @@ def get_payment(payment_id: int, db: Session = Depends(get_db)):
 
 @router.post("/", response_model=PaymentRead) #TODO: wywoływać tę funkcję automatycznie przy tworzeniu stay
 def create_payment(payment_create: PaymentCreate, db: Session = Depends(get_db)):
-    stay = db.execute(select(Stay).where(Stay.id == payment_create.stay_id)).scalars().first()
+    stay = db.execute(select(StayModel).where(StayModel.id == payment_create.stay_id)).scalars().first()
     if not stay:
         raise HTTPException(status_code=404, detail="Stay not found")
 
