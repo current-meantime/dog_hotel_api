@@ -17,6 +17,7 @@ def filter_owners(
     phone_number: Optional[int] = None,
     unpaid: Optional[bool] = None,
     overdue: Optional[bool] = None,
+    bank_account: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
     stmt = select(OwnerModel)
@@ -38,6 +39,9 @@ def filter_owners(
             stmt = stmt.where(PaymentModel.is_paid == False)
         if overdue:
             stmt = stmt.where(PaymentModel.is_overdue > 0)
+            
+    if bank_account:
+        stmt = stmt.where(OwnerModel.bank_account == bank_account)
 
     owners = db.execute(stmt).scalars().all()
 
