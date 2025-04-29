@@ -36,10 +36,10 @@ def search_dogs(
             query = query.where(DogModel.medicine.is_(None))
 
     if special_food is not None:
-        if special_food:
-            query = query.where(DogModel.food == "standard")
-        else:
+        if special_food is True:
             query = query.where(DogModel.food != "standard")
+        else:
+            query = query.where(DogModel.food == "standard")
         
     if notes is True:
         query = query.where(DogModel.notes.isnot(None)).where(DogModel.notes != "")
