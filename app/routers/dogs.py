@@ -5,15 +5,16 @@ from app.models.dog import Dog as DogModel
 from app.models.owner import Owner as OwnerModel
 from app.schemas.dog import DogRead, DogCreate, DogUpdate
 from app.database.database import get_db
+from typing import Optional
 
 router = APIRouter(prefix="/dogs", tags=["Dogs"])
 
 @router.get("/", response_model=list[DogRead])
 def search_dogs(
-    owner_id: int = None,
-    name: str = None,
-    medicated: bool = None,
-    food_type: str = None,  # "standard" lub "non-standard"
+    owner_id: Optional[int] = None,
+    name: Optional[str] = None,
+    medicated: Optional[bool] = None,
+    food_type: Optional[str] = None,  # "standard" lub "non-standard"
     db: Session = Depends(get_db),
 ):
     query = select(DogModel)
