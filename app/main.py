@@ -21,6 +21,9 @@ app.include_router(stays.router)
 app.include_router(bank_transfers.router)
 app.include_router(bank_transfer_scheduler.router)
 
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the Dog Hotel API"}
 
 # Funkcja do uruchomienia aktualizacji raz w roku
 def scheduled_update():

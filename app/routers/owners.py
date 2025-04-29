@@ -10,7 +10,7 @@ from typing import Optional
 
 router = APIRouter(prefix="/owners", tags=["Owners"])
 
-@router.get("/filter", response_model=list[OwnerRead])
+@router.get("/", response_model=list[OwnerRead])
 def filter_owners(
     fullname: Optional[str] = None,
     email: Optional[str] = None,
@@ -44,9 +44,6 @@ def filter_owners(
         stmt = stmt.where(OwnerModel.bank_account == bank_account)
 
     owners = db.execute(stmt).scalars().all()
-
-    if not owners:
-        raise HTTPException(status_code=404, detail="No owners matched the given filters")
 
     return owners
 
