@@ -6,7 +6,7 @@ from app.routers import dogs, owners, payments, stays
 import logging
 from app.routers import bank_transfers
 from app.routers import bank_transfer_scheduler
-from app.services.update_payments_from_transfers import process_bank_transfers
+from app.services.update_payments_from_transfers import update_payments_from_transfers
 
 from app.models import owner, dog, stay, payment  # do not remove, they need to be initialized before create_all()
 
@@ -28,7 +28,7 @@ def scheduled_update():
     logging.getLogger("update_logger").info("Scheduled update triggered.")
     db = Session(bind=engine)
     update_dog_ages(db)
-    process_bank_transfers(db)  # <--- uruchamiamy automatyczne dopasowanie przelewów
+    update_payments_from_transfers(db)  # <--- uruchamiamy automatyczne dopasowanie przelewów
     db.close()
 
 # Scheduler
