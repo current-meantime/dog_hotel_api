@@ -18,7 +18,7 @@ def update_payments_from_transfers(db: Session):
 
         for transfer in transfers:
             try:
-                stay_id = int(transfer.transfer_title.strip())
+                stay_id = int(transfer.title.strip()) # title is supposed to be the stay_id
                 payment = db.execute(
                     select(Payment).where(Payment.stay_id == stay_id)
                 ).scalars().first()
@@ -27,7 +27,7 @@ def update_payments_from_transfers(db: Session):
                     logger.warning(f"No payment found for stay_id: {stay_id}")
                     continue
 
-                required_amount = payment.calculate_amount()
+                required_amount = payment.calculate_amount(db)
                 received_amount = transfer.amount
 
                 if received_amount >= required_amount:
