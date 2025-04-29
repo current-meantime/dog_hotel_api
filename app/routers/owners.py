@@ -6,20 +6,29 @@ from app.models.payment import Payment as PaymentModel
 from app.models.stay import Stay as StayModel
 from app.schemas.owner import OwnerRead, OwnerCreate, OwnerUpdate
 from app.database.database import get_db
+from typing import Optional
 
 router = APIRouter(prefix="/owners", tags=["Owners"])
 
 @router.get("/filter", response_model=list[OwnerRead])
 def filter_owners(
-    fullname: str = None,
-    unpaid: bool = False,
-    overdue: bool = False,
+    fullname: Optional[str] = None,
+    email: Optional[str] = None,
+    phone_number: Optional[int] = None,
+    unpaid: Optional[bool] = None,
+    overdue: Optional[bool] = None,
     db: Session = Depends(get_db)
 ):
     stmt = select(OwnerModel)
 
     if fullname:
         stmt = stmt.where(OwnerModel.fullname.ilike(fullname.strip().lower())) #TODO: spr czy w dog router też jest ilike
+        
+    if email:
+        stmt = stmt.where(OwnerModel.email.ilike(email.strip().lower()))
+        
+    if phone_number:
+        stmt = stmt.where(OwnerModel.phone_number == phone_number)
 
     if unpaid or overdue:
         stmt = stmt.join(StayModel, StayModel.owner_id == OwnerModel.id).join(
@@ -47,19 +56,6 @@ def get_owner_by_id(owner_id, db: Session=Depends(get_db)):
         raise HTTPException(status_code=404, detail="Owner not found")
     
     return existing_owner
-
-
-@router.get("/fullname/{fullname}", response_model=list[OwnerRead])
-def get_owners_by_name(fullname: str, db: Session=Depends(get_db)): #TODO: fix this, I get Exception while typing existing fullnames
-    owners = db.execute(
-        select(OwnerModel).where(OwnerModel.fullname == fullname.strip().lower())
-    ).scalars().all()
-
-    if not owners:
-        raise HTTPException(status_code=404, detail="No owners found with this name")
-    
-    return owners
-
 
 
 @router.put("/{owner_id}", response_model=OwnerRead)
