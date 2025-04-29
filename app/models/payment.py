@@ -9,9 +9,10 @@ class Payment(Base):
     __tablename__ = "payments"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    amount: Mapped[float] # zrobić tak, by wyliczało to pole na podstawie długości pobytu i stawki + ewentualna dodatkowa stawka za dzień przy specjalnych wymaganiach do opieki nad psem
-    is_paid: Mapped[bool]
-    overdue_30_days: Mapped[int] = mapped_column(default=0)  #TODO: zmienić na bool, albo zmienić na liczbę overdue dni i info o przekroczeniu 30 dni pokawać przez logi?
+    amount: Mapped[float]
+    is_paid: Mapped[bool] = mapped_column(default=False)  
+    is_overdue: Mapped[bool] = mapped_column(default=False)  
+    overdue_days: Mapped[int] = mapped_column(default=0)  
 
     stay_id: Mapped[int] = mapped_column(ForeignKey("stays.id"), nullable=False)
     stay = relationship("Stay", back_populates="payments")
