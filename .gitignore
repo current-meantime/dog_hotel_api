@@ -2,5 +2,5 @@ logs
 __pycache__
 *.pyc
 venv
-hotel_trial.db
+dog_hotel.db
 .env

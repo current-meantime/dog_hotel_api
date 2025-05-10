@@ -5,7 +5,7 @@ import os
 
 load_dotenv()  # Załadowanie zmiennych środowiskowych z pliku .env
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///hotel_trial.db")  # domyślnie SQLite, jeśli nie podano w .env
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///dog_hotel.db")  # domyślnie SQLite, jeśli nie podano w .env
 
 engine = create_engine(DATABASE_URL)
 
