@@ -32,6 +32,19 @@ def list_transfers(
     transfers = db.execute(stmt).scalars().all()
     return transfers
 
+@router.get("/{transfer_id}", response_model=BankTransferRead)
+def get_transfer(transfer_id: int, db: Session = Depends(get_db)):
+    log.info(f"Fetching bank transfer with id: {transfer_id}")
+    transfer = db.execute(
+        select(BankTransferModel).where(BankTransferModel.id == transfer_id)
+    ).scalars().first()
+    
+    if not transfer:
+        log.warning(f"Bank transfer with id {transfer_id} not found")
+        raise HTTPException(status_code=404, detail="Bank transfer not found")
+    
+    return transfer
+
 @router.post("/", response_model=BankTransferRead)
 def create_transfer(transfer: BankTransferCreate, db: Session = Depends(get_db)):
     log.info(f"Creating new bank transfer from {transfer.sender_name}")
