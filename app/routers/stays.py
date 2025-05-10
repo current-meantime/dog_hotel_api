@@ -102,44 +102,36 @@ def get_stay(stay_id, db: Session=Depends(get_db)):
     
     return existing_stay
 
-@router.post("/", response_model=StayRead) #TODO: add date validation or check if it's by default validated in pydantic model
+@router.post("/", response_model=StayRead)
 def create_stay(stay_data: StayCreate, db: Session = Depends(get_db)):
     log.info(f"Creating new stay for dog_id: {stay_data.dog_id}, owner_id: {stay_data.owner_id}")
-    # Sprawdzamy, czy właściciel istnieje
-    owner = db.execute(
-        select(OwnerModel).where(OwnerModel.id == stay_data.owner_id)
-    ).scalars().first()
-    if not owner:
-        log.error(f"Owner with id {stay_data.owner_id} not found")
-        raise HTTPException(status_code=400, detail="Owner does not exist")
-
-    # Sprawdzamy, czy pies istnieje
-    dog = db.execute(
-        select(DogModel).where(DogModel.id == stay_data.dog_id)
-    ).scalars().first()
-    if not dog:
-        log.error(f"Dog with id {stay_data.dog_id} not found")
-        raise HTTPException(status_code=400, detail="Dog does not exist")
-
-    # Sprawdzamy, czy nie istnieje nakładający się pobyt
+    
+    # Validate dates
+    if stay_data.end_date < stay_data.start_date:
+        log.warning(f"Invalid dates: end_date {stay_data.end_date} before start_date {stay_data.start_date}")
+        raise HTTPException(
+            status_code=400,
+            detail="End date cannot be earlier than start date"
+        )
+    
+    # Check for overlapping stays
     overlapping_stay = db.execute(
         select(StayModel).where(
             StayModel.dog_id == stay_data.dog_id,
-            StayModel.owner_id == stay_data.owner_id,
             StayModel.start_date <= stay_data.end_date,
             StayModel.end_date >= stay_data.start_date
         )
     ).scalars().first()
+    
     if overlapping_stay:
         log.warning(
             f"Overlapping stay found for dog_id: {stay_data.dog_id}, "
             f"owner_id: {stay_data.owner_id}, dates: {stay_data.start_date} - {stay_data.end_date}"
         )
-        raise HTTPException(status_code=400, detail="Overlapping stay exists for this dog and owner")
-
-    if stay_data.end_date < stay_data.start_date:
-        log.warning(f"Invalid stay date range: start={stay_data.start_date}, end={stay_data.end_date}")
-        raise HTTPException(status_code=400, detail="End date cannot be earlier than start date.")
+        raise HTTPException(
+            status_code=400, 
+            detail="Overlapping stay exists for this dog and owner"
+        )
 
     try:
         new_stay = StayModel(**stay_data.model_dump())
@@ -222,7 +214,6 @@ def delete_dog(stay_id, db: Session=Depends(get_db)):
         log.error(f"Error deleting stay {stay_id}: {str(e)}", exc_info=True)
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to delete stay")
-
 
 
 
