@@ -9,7 +9,11 @@ from app.routers import bank_transfer_scheduler
 from app.services.update_payments_from_transfers import update_payments_from_transfers
 from app.utils.logging_config import setup_logging
 
-from app.models import owner, dog, stay, payment  # do not remove, they need to be initialized before create_all()
+from app.models.owner import Owner
+from app.models.dog import Dog
+from app.models.stay import Stay
+from app.models.payment import Payment
+from app.models.bank_transfer import BankTransfer
 
 setup_logging()
 
@@ -45,5 +49,3 @@ scheduler.start()
 @app.on_event("shutdown")
 def shutdown():
     scheduler.shutdown()
-    
-# adding a comment to check somthing out in git
