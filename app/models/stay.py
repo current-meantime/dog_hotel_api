@@ -6,7 +6,7 @@ from datetime import date, datetime, timezone
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey
-from app.models.owner import Owner  # Załóżmy, że masz model Owner
+from app.models.owner import Owner
 
 class Stay(Base):
     __tablename__ = "stays"
@@ -19,9 +19,9 @@ class Stay(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
 
     dog_id: Mapped[int] = mapped_column(ForeignKey("dogs.id"), nullable=False)
-    owner_id: Mapped[int] = mapped_column(ForeignKey("owners.id"), nullable=False)  # Dodanie klucza obcego do właściciela
+    owner_id: Mapped[int] = mapped_column(ForeignKey("owners.id"), nullable=False)
 
     dog = relationship("Dog", back_populates="stays")
-    owner = relationship("Owner", back_populates="stays")  # Relacja z właścicielem
-    payments = relationship("Payment", back_populates="stay")  # Relacja z płatnościami
+    owner = relationship("Owner", back_populates="stays")
+    payments = relationship("Payment", back_populates="stay")
 
